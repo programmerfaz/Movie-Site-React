@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import Search from "./components/search.jsx";
 import Spinner from "./components/spinner.jsx";
 import MovieCard from "./components/MovieCard.jsx";
+import {useDebounce} from 'react-use';
 
 // define url
 const API_BASE_URL = "https://api.themoviedb.org/3/";
@@ -24,14 +25,20 @@ const App = () => {
     const [movieList, setMovieList] = useState([]);
     // loading in React is like while a data is loading it shows some kind of loading
     const [loading, setLoading] = useState(false);
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
 
-    const fetchMovies = async () => {
+    useDebounce(() => {setDebouncedSearchTerm(searchTerm)}, 500,[searchTerm]);
+
+    // it debounces the search term from making too many request to the website
+    const fetchMovies = async (query = '') => {
         setLoading(true);
         setErrorMessage('');
         try {
             // const endpoint = `${API_BASE_URL}/search/movies`;
-            const endpoint = `${API_BASE_URL}/discover/movie?sort_by=popularity.desc`;
+            const endpoint = query
+            ? `${API_BASE_URL}/search/movie?query=${encodeURIComponent(query)}`
+            : `${API_BASE_URL}/discover/movie?sort_by=popularity.desc`;
 
             const response = await fetch(endpoint,API_OPTIONS);
             if (!response.ok) {
@@ -54,8 +61,8 @@ const App = () => {
     }
 
     useEffect(() => {
-        fetchMovies();
-    }, []);
+        fetchMovies(debouncedSearchTerm);
+    }, [searchTerm]);
 
     return (
         <main>
