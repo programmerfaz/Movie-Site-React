@@ -3,6 +3,8 @@ import Search from "./components/search.jsx";
 import Spinner from "./components/spinner.jsx";
 import MovieCard from "./components/MovieCard.jsx";
 import {useDebounce} from 'react-use';
+import {updateSearchCount} from "./appwrite.js";
+import {getTrendingMovies} from "./appwrite.js";
 
 // define url
 const API_BASE_URL = "https://api.themoviedb.org/3/";
@@ -26,9 +28,9 @@ const App = () => {
     // loading in React is like while a data is loading it shows some kind of loading
     const [loading, setLoading] = useState(false);
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+    const [trendingMovies,setTrendingMovies] = useState([]);
 
-
-    useDebounce(() => {setDebouncedSearchTerm(searchTerm)}, 500,[searchTerm]);
+    useDebounce(() => {setDebouncedSearchTerm(searchTerm)}, 200,[searchTerm]);
 
     // it debounces the search term from making too many request to the website
     const fetchMovies = async (query = '') => {
@@ -52,6 +54,11 @@ const App = () => {
             }
             // console.log(data.results);
             setMovieList(data.results || []);
+
+            if(query && data.results.length > 0){
+                await updateSearchCount(query,data.results[0]);
+            }
+
         } catch (e) {
             console.log(`Error fetching movies: ${e.message}`);
             setErrorMessage(`Error fetching movies. Please try again later ${e.message}`);
@@ -60,10 +67,25 @@ const App = () => {
         }
     }
 
+    const loadTrendingMovies = async () => {
+        try{
+            const movies = await getTrendingMovies();
+
+            setTrendingMovies(movies);
+        }catch(error){
+            console.error(`Error fetching trending movies: ${error.message}`);
+        }
+    }
+
+
+
     useEffect(() => {
         fetchMovies(debouncedSearchTerm);
     }, [searchTerm]);
 
+    useEffect(() => {
+        loadTrendingMovies();
+    }, []);
     return (
         <main>
             <div className={"pattern"}>
@@ -78,8 +100,22 @@ const App = () => {
                     {/*<h1 className={"text-white"}>{searchTerm}</h1>*/}
                 </header>
 
+                {trendingMovies.length>0 && (
+                    <section className={"trending"}>
+                        <h2>Trending Movies</h2>
+                        <ul>
+                            {trendingMovies.map((movie,index) => (
+                                <li key={movie.$id}>
+                                    <p>{index+1}</p>
+                                    <img src={movie.poster_url} alt={movie.title}/>
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                    )}
+
                 <section className={"all-movies"}>
-                    <h2 className={"mt-[40px]"}>All Movies</h2>
+                    <h2>All Movies</h2>
                     {loading ?(
                        <Spinner/>
                     ): errorMessage ?(
